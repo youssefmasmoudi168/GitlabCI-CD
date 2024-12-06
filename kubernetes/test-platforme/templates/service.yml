@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: "frontend-{{.Values.app_NAME}}"
+  namespace: "{{.Values.space_NAME}}"
+  labels:
+    app: "frontend-{{.Values.app_NAME}}"
+spec:
+  selector:
+    app: "frontend-{{.Values.app_NAME}}"
+  type: LoadBalancer
+  ports:
+    - port: 3000
+      protocol: TCP
+      targetPort: 3000
+      name: frontend
+      nodePort: {{.Values.frontend_PORT}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "backend-{{.Values.app_NAME}}"
+  namespace: "{{.Values.space_NAME}}"
+  labels:
+    app: "backend-{{.Values.app_NAME}}"
+spec:
+  selector:
+    app: "backend-{{.Values.app_NAME}}"
+  type: LoadBalancer
+  ports:
+    - port: 8000
+      protocol: TCP
+      targetPort: 8000
+      name: backend
+      nodePort: {{.Values.backend_PORT}}
+

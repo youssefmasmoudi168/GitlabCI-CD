@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-front
+  namespace: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-local
+  template:
+    metadata:
+      labels:
+        app: test-local
+    spec:
+      containers:
+        - name: front
+          image: omaima45daoud/test_plateforme:front
+          ports: 
+          - containerPort: 8081
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-back
+  namespace: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-local
+  template:
+    metadata:
+      labels:
+        app: test-local
+    spec:
+      containers:
+        - name: back
+          image: omaima45daoud/test_plateforme:back
+          ports: 
+          - containerPort: 8001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitlab-runner
+  namespace: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-local
+  template:
+    metadata:
+      labels:
+        app: test-local
+    spec:
+      containers:
+        - name: gitlab-runner-plateforme 
+          image: gitlab/gitlab-runner:latest
+          ports: 
+          - containerPort: 1472
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonarqube
+  namespace: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-local
+  template:
+    metadata:
+      labels:
+        app: test-local
+    spec:
+      containers:
+        - name: sonarqube
+          image: sonarqube:latest
+          ports: 
+          - containerPort: 1475

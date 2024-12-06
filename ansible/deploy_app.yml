@@ -1,0 +1,102 @@
+- name: Push HELM Chart to nexus
+  hosts: localhost
+  tasks:
+    - name: Package helm release
+      ansible.builtin.command: /bin/sh -c "helm package {{ playbook_dir }}/../kubernetes/{{ projectName }}"
+      changed_when: false
+
+    - name: Push helm release to nexus repo
+      ansible.builtin.command: /bin/sh -c "curl -u {{ helm_user }}:{{ helm_password }} {{ nexus_helmRepo }} --upload-file {{ projectName }}-*.tgz"
+      changed_when: false
+
+- name: Deploy kubernetes project
+  hosts: containerdKubernetes
+  tasks:
+    - name: Copy values for k8s configuration
+      ansible.builtin.copy:
+        src: "../kubernetes/{{ projectName }}/values-{{ env }}.yaml"
+        dest: "{{ ansible_env.HOME }}/{{ projectName }}/"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+
+    - name: Check if application is running
+      ansible.builtin.command: /bin/sh -c "helm ls -a | awk 'NR!=1 {print $1}' | grep -w ^{{ projectName }}-{{ env }}$"
+      changed_when: false
+      register: runningApp
+      ignore_errors: true
+
+    - name: Get failed deployment
+      ansible.builtin.command: /bin/sh -c "helm ls --failed | awk 'NR!=1 {print $1}' | grep -w ^{{ projectName }}-{{ env }}$"
+      changed_when: false
+      register: failedDeployment
+      ignore_errors: true
+
+    - name: Stop project
+      ansible.builtin.command: /bin/sh -c "helm delete {{ projectName }}-{{ env }}"
+      when: runningApp is succeeded or not failedDeployment.stdout == ""
+      register: isStopped
+      ignore_errors: true
+
+    - name: Check if app is stopped
+      ansible.builtin.command: /bin/sh -c "kubectl get pods -n {{ projectName }} | grep -w {{ env }} | awk '{print $1}'"
+      when: runningApp is succeeded
+      register: appStillRunning
+      until: appStillRunning.stdout == ""
+      retries: 90
+      delay: 1
+    ######################################
+    #          Deploy application        #
+    ######################################
+
+    - name: Check namespace existance
+      ansible.builtin.command: /bin/sh -c "kubectl get namespace | awk 'NR!=1 {print $1}' | grep -w ^{{ projectName }}$"
+      changed_when: false
+      register: namespace
+      ignore_errors: true
+
+    - name: Create namespace if not exist
+      ansible.builtin.command: /bin/sh -c "kubectl create namespace {{ projectName }}"
+      register: namespaceCreation
+      when: namespace.stdout == ""
+      failed_when: namespaceCreation.rc != 0
+
+    - name: Check k8s-secret existance
+      ansible.builtin.command: /bin/sh -c "kubectl get secrets -n {{ projectName }} | grep -w docker-credentials-{{ projectName }}-{{ env }}"
+      changed_when: false
+      register: secret
+      ignore_errors: true
+
+    - name: Create secret to pull container image from nexus
+      ansible.builtin.command: |
+        /bin/sh -c "kubectl create secret docker-registry docker-credentials-{{ projectName }}-{{ env }} \
+        --docker-server={{ nexus_dockerServer }} --docker-username={{ nexus_dockerUser }} --docker-password={{ nexus_dockerPassword }} -n {{ projectName }}"
+      when: secret.stdout == ""
+      register: secretCreation
+      failed_when: secretCreation.rc != 0
+
+    - name: Update HELM repository
+      ansible.builtin.command: /bin/sh -c "helm repo update"
+      changed_when: false
+
+    - name: Deploy application in k8s
+      ansible.builtin.command: |
+        /bin/sh -c "helm upgrade -i --force --version {{ helmVersion }} -f values-{{ env }}.yaml \
+        {{ projectName }}-{{ env }} nexus/{{ projectName }}"
+      changed_when: false
+      args:
+        chdir: "{{ ansible_env.HOME }}/{{ projectName }}"
+
+    - name: Search k8s configuration files to delete
+      ansible.builtin.find:
+        paths: "{{ ansible_env.HOME }}"
+        patterns:
+          - "{{ projectName }}*"
+        file_type: any
+      register: files_to_delete
+
+    - name: Delete k8s configuration files
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      with_items: "{{ files_to_delete.files }}"

@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "frontend-{{.Values.app_NAME}}"
+  namespace: "{{.Values.space_NAME}}"
+  labels:
+    app: "frontend-{{.Values.app_NAME}}"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 0
+  selector:
+    matchLabels:
+      app: "frontend-{{.Values.app_NAME}}"
+  template:
+    metadata:
+      labels:
+        app: "frontend-{{.Values.app_NAME}}"
+    spec:
+      containers:
+        - name: "frontend-{{.Values.app_NAME}}"
+          image: "nexus.sifast.com:8087/frontend-{{.Values.space_NAME}}:{{.Values.app_env}}"
+          imagePullPolicy: Always
+          ports:
+            - name: frontend
+              containerPort: 3000
+          env:
+            - name: "NODE_ENV"
+              value: "{{.Values.NODE_ENV}}"
+      imagePullSecrets:
+        - name: "docker-credentials-{{.Values.app_NAME}}"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: sifast-devops
+                    operator: In
+                    values:
+                      - "{{.Values.devops_label}}"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "backend-{{.Values.app_NAME}}"
+  namespace: "{{.Values.space_NAME}}"
+  labels:
+    app: "backend-{{.Values.app_NAME}}"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 0
+  selector:
+    matchLabels:
+      app: "backend-{{.Values.app_NAME}}"
+  template:
+    metadata:
+      labels:
+        app: "backend-{{.Values.app_NAME}}"
+    spec:
+      containers:
+        - name: "backend-{{.Values.app_NAME}}"
+          image: "nexus.sifast.com:8087/backend-{{.Values.space_NAME}}:{{.Values.app_env}}"
+          imagePullPolicy: Always
+          ports:
+            - name: backend
+              containerPort: 8000
+      imagePullSecrets:
+        - name: "docker-credentials-{{.Values.app_NAME}}"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: sifast-devops
+                    operator: In
+                    values:
+                      - "{{.Values.devops_label}}"

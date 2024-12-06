@@ -1,0 +1,9 @@
+space_NAME: test-platforme
+app_NAME: test-platforme-rec
+app_env: rec
+devops_label: projects
+NODE_ENV: production
+ip_HOST: 192.168.66.212
+frontend_PORT: 31852
+backend_PORT: 31853
+

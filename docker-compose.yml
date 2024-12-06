@@ -1,0 +1,87 @@
+version: '3.9'
+services:
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    env_file:
+      - .env
+    restart: always
+    networks:
+      - appnet
+    ports:
+      - '${PMA_LOCAL_PORT}:80'
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_ROOT_PASSWORD: root
+    depends_on:
+      - mysql
+
+  frontend:
+    container_name: frontend
+    env_file:
+      - .env
+    restart: always
+    build:
+      context: .
+      dockerfile: frontend.Dockerfile
+      target: frontend
+    ports:
+      - '${FRONTEND_LOCAL_PORT}:3000'
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app/frontend
+      - /app/frontend/node_modules
+    environment:
+      - NODE_ENV=development
+    networks:
+      - appnet
+
+  backend:
+    container_name: backend
+    env_file:
+      - .env
+    restart: always
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+      target: backend
+    ports:
+      - '${BACKEND_LOCAL_PORT}:8000'
+    volumes:
+      - ./backend:/app/backend
+      - /app/backend/vendor
+      - /app/backend/var
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - appnet
+
+  mysql:
+    container_name: mysql
+    image: mysql:8.0
+    env_file:
+      - .env
+    healthcheck:
+      test: mysqladmin ping -P 3306 -h localhost -proot
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    command: --default-authentication-plugin=mysql_native_password
+    restart: on-failure
+    volumes:
+      - mysql:/var/lib/mysql
+    networks:
+      - appnet
+    environment:
+      # MYSQL_USER: symfony
+      # MYSQL_PASSWORD: symfony
+      MYSQL_ROOT_PASSWORD: root
+
+volumes:
+  mysql:
+networks:
+  appnet:

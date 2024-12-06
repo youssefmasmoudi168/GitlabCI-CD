@@ -1,0 +1,35 @@
+- name: Bumping project version
+  hosts: localhost
+  vars:
+    workdir: "{{ playbook_dir }}/../"
+  tasks:
+    - name: Prepare git branch
+      register: prepare
+      changed_when: prepare.rc == 0
+      failed_when: prepare.rc != 0
+      ansible.builtin.shell:
+        cmd: |
+          git config --global user.email jenkins@sifast.com; \
+          git config --global user.name jenkins; \
+          git config --local credential.helper store; \
+          git checkout {{ branch }}
+        chdir: "{{ workdir }}"
+
+    - name: Bump project version
+      register: bump_version
+      changed_when: bump_version.rc == 0
+      failed_when: bump_version.rc != 0
+      ansible.builtin.command:
+        cmd: bash {{ playbook_dir }}/scripts/bump_version.sh {{ type }}
+        chdir: "{{ workdir }}"
+
+    - name: Git update repository
+      register: git_update
+      changed_when: git_update.rc == 0
+      failed_when: bump_version.rc != 0
+      ansible.builtin.shell:
+        cmd: |
+          git add -A; \
+          git commit -m {{ message }}; \
+          git push {{ remote }} {{ branch }}
+        chdir: "{{ workdir }}"

@@ -1,0 +1,8 @@
+space_NAME: test-platforme
+app_NAME: test-platforme-itg
+app_env: itg
+devops_label: projects
+NODE_ENV: production
+ip_HOST: 192.168.66.212
+frontend_PORT: 31850
+backend_PORT: 31851

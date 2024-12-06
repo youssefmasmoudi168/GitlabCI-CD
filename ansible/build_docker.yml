@@ -1,0 +1,53 @@
+- name: Build docker image
+  hosts: docker_build
+  vars:
+    workdir: "{{ ansible_env.HOME }}/docker-images/{{ projectName }}-{{ env }}"
+  tasks:
+    - name: Copy project folder
+      synchronize:
+        src: "{{ playbook_dir }}/../"
+        dest: "{{ workdir }}"
+        rsync_opts:
+          - "--delete-before"
+          - "--exclude=node_modules"
+          - "--exclude=vendor"
+          - "--chown={{ ansible_user }}:{{ ansible_user }}"
+
+    - name: Copy Dockerfile in workdir
+      command: /bin/sh -c "cp {{ workdir }}/kubernetes/docker/Dockerfile {{ workdir }}"
+      args:
+        chdir: "{{ workdir }}"
+
+    - name : Copy Dockerfile in workdir
+      command : /bin/sh -c "cp {{ workdir }}/kubernetes/docker/config/.env-{{ env }} {{ workdir }}/backend/.env"
+      args :
+        chdir : "{{ workdir }}"
+
+    - name : Copy Dockerfile in workdir
+      command : /bin/sh -c "cp {{ workdir }}/kubernetes/docker/config/.env-frontend-{{ env }} {{ workdir }}/frontend/.env.development"
+      args :
+        chdir : "{{ workdir }}"    
+
+    - name: Build docker image frontend
+      command: /bin/sh -c "DOCKER_BUILDKIT=1 docker build --target frontend  --build-arg env={{ env }} -t {{ nexus_host }}/frontend-{{ projectName }}:{{ env }} ."
+      args:
+        chdir: "{{ workdir }}"
+    - name: Build docker image backend
+      command: /bin/sh -c "DOCKER_BUILDKIT=1 docker build --target backend --build-arg env={{ env }} -t {{ nexus_host }}/backend-{{ projectName }}:{{ env }} ."
+      args:
+        chdir: "{{ workdir }}"
+
+    - name: Push docker image for backend
+      command: /bin/sh -c "docker push {{ nexus_host }}/backend-{{ projectName }}:{{ env }}"
+      args:
+        chdir: "{{ workdir }}"
+
+    - name: Push docker image for frontend
+      command: /bin/sh -c "docker push {{ nexus_host }}/frontend-{{ projectName }}:{{ env }}"
+      args:
+        chdir: "{{ workdir }}"    
+
+    - name: Delete project folder
+      file:
+        state: absent
+        path: "{{ workdir }}"
